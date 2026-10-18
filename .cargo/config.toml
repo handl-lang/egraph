@@ -1,0 +1,10 @@
+# Cargo configuration for handl-egraph.
+#
+# `RUST_MIN_STACK`: the e-graph's matcher, instantiator, congruence
+# drain, and extraction walks are recursive descents over the term DAG.
+# Deep e-class cones can overflow libtest's default 2 MiB per-test
+# thread stack — the same wall the eval engines hit (platform sets
+# 16 MiB, kit-canonical 32 MiB). It only affects test-thread stacks;
+# normal builds are unaffected.
+[env]
+RUST_MIN_STACK = "33554432"

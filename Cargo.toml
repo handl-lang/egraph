@@ -1,0 +1,78 @@
+[package]
+name = "handl-egraph"
+version = "0.1.0"
+edition = "2024"
+description = "Generic e-graph / equality-saturation substrate over the kernel's `Term`/`Value` — the named Rust port of catopt-core's proven e-graph spec."
+license = "MIT"
+repository = "https://github.com/handl-lang/egraph"
+
+# handl deps float on `main` (git). Local development resolves them to
+# sibling checkouts via `source ~/.cache/devin/handl_deps.env` (git
+# insteadOf) or the `[patch]` tables below — the handl-lang convention.
+[dependencies]
+# engine — the arrow-calculus `Term` kernel (ADR-0104b)
+hnl-engine = { git = "https://github.com/handl-lang/engine", branch = "main" }
+# kernel — the `Language` data schema + the tagged value layer
+handl-language = { git = "https://github.com/handl-lang/kernel", branch = "main" }
+handl-value = { git = "https://github.com/handl-lang/kernel", branch = "main" }
+
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+rustc-hash = "2"
+
+[dev-dependencies]
+serde_json = "1"
+
+# dev-link: begin
+[patch."https://github.com/handl-lang/engine"]
+hnl-engine = { path = "../engine" }
+[patch."https://github.com/handl-lang/host"]
+handl = { path = "../host" }
+handl-bench = { path = "../host/crates/bench" }
+handl-ext-tests = { path = "../host/crates/ext-tests" }
+handl-kit-arrow-lower = { path = "../host/crates/handl-kit-arrow-lower" }
+handl-kit-data = { path = "../host/crates/handl-kit-data" }
+handl-runtime = { path = "../host/crates/handl-runtime" }
+handl-test-utils = { path = "../host/crates/handl-test-utils" }
+handl-host-tooling = { path = "../host/crates/host-tooling" }
+handl-platform = { path = "../host/crates/platform" }
+handl-platform-tests = { path = "../host/crates/platform-tests" }
+handl-plugin-applier = { path = "../host/crates/plugin-applier" }
+handl-plugin-applier-bootstrap = { path = "../host/crates/plugin-applier-bootstrap" }
+handl-plugin-applier-default = { path = "../host/crates/plugin-applier-default" }
+handl-plugin-compile = { path = "../host/crates/plugin-compile" }
+handl-plugin-exec-cache = { path = "../host/crates/plugin-exec-cache" }
+handl-plugin-ext-compile = { path = "../host/crates/plugin-ext-compile" }
+handl-plugin-ext-detect = { path = "../host/crates/plugin-ext-detect" }
+handl-plugin-ext-diag = { path = "../host/crates/plugin-ext-diag" }
+handl-plugin-ext-eval = { path = "../host/crates/plugin-ext-eval" }
+handl-plugin-ext-fmt = { path = "../host/crates/plugin-ext-fmt" }
+handl-plugin-ext-kit = { path = "../host/crates/plugin-ext-kit" }
+handl-plugin-ext-lint = { path = "../host/crates/plugin-ext-lint" }
+handl-plugin-ext-plugin = { path = "../host/crates/plugin-ext-plugin" }
+handl-plugin-ext-refinement = { path = "../host/crates/plugin-ext-refinement" }
+handl-plugin-ext-sdkgen = { path = "../host/crates/plugin-ext-sdkgen" }
+handl-plugin-ext-test = { path = "../host/crates/plugin-ext-test" }
+handl-plugin-ext-typecheck = { path = "../host/crates/plugin-ext-typecheck" }
+handl-plugin-lib-handl = { path = "../host/crates/plugin-lib-handl" }
+handl-plugin-lib-scheduler = { path = "../host/crates/plugin-lib-scheduler" }
+handl-plugin-lib-tag = { path = "../host/crates/plugin-lib-tag" }
+handl-plugin-load = { path = "../host/crates/plugin-load" }
+handl-plugin-loader-native = { path = "../host/crates/plugin-loader-native" }
+handl-plugin-module = { path = "../host/crates/plugin-module" }
+handl-plugin-sdkgen = { path = "../host/crates/plugin-sdkgen" }
+[patch."https://github.com/handl-lang/kernel"]
+handl-lib-bytes = { path = "../kernel/crates/bytes" }
+handl-lib-cmp = { path = "../kernel/crates/cmp" }
+handl-lib-combinators = { path = "../kernel/crates/combinators" }
+handl-lib-error = { path = "../kernel/crates/error" }
+handl-ext = { path = "../kernel/crates/handl-ext" }
+handl-language = { path = "../kernel/crates/handl-language" }
+handl-value = { path = "../kernel/crates/handl-value" }
+handl-lib-mood = { path = "../kernel/crates/mood" }
+handl-lib-obj = { path = "../kernel/crates/obj" }
+handl-lib-ops = { path = "../kernel/crates/ops" }
+handl-lib-prim = { path = "../kernel/crates/prim" }
+handl-lib-prim-handl = { path = "../kernel/crates/prim-handl" }
+handl-lib-type = { path = "../kernel/crates/type" }
+# dev-link: end
