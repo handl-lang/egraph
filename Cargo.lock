@@ -164,6 +164,50 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "29666d0abbfad1e3dc4dcf6144730dd3a3ab225bbbdac83319345b1b44ccfc1b"
 
 [[patch.unused]]
+name = "handl-ext"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "handl-lib-bytes"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "handl-lib-cmp"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "handl-lib-combinators"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "handl-lib-error"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "handl-lib-mood"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "handl-lib-obj"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "handl-lib-ops"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "handl-lib-prim"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "handl-lib-prim-handl"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "handl-lib-type"
+version = "0.1.0"
+
+[[patch.unused]]
 name = "handl"
 version = "0.1.0"
 
@@ -297,48 +341,4 @@ version = "0.1.0"
 
 [[patch.unused]]
 name = "handl-test-utils"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "handl-ext"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "handl-lib-bytes"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "handl-lib-cmp"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "handl-lib-combinators"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "handl-lib-error"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "handl-lib-mood"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "handl-lib-obj"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "handl-lib-ops"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "handl-lib-prim"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "handl-lib-prim-handl"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "handl-lib-type"
 version = "0.1.0"
