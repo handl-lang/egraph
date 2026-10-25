@@ -133,3 +133,13 @@ cargo clippy --all-targets
 
 The recursion-heavy walks carry `RUST_MIN_STACK=32MiB` for test
 threads (`.cargo/config.toml`), matching the org convention.
+
+## Documentation
+
+Published site (Diátaxis): <https://handl-lang.github.io/docs/egraph/>
+
+- [Reference](https://handl-lang.github.io/docs/egraph/reference/) — public API surface
+- [How-to](https://handl-lang.github.io/docs/egraph/how-to/) — task recipes
+- [Explanation](https://handl-lang.github.io/docs/egraph/explanation/) — design and rationale
+
+Decision records live on the `project` branch under `project/adrs/`.
