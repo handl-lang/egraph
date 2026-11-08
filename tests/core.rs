@@ -25,6 +25,27 @@ fn union_find_basics() {
     assert_eq!(uf.find(c), uf.find(a));
 }
 
+/// Regression: `insert_enode` must allocate a union-find slot in every
+/// build profile. The allocation once lived inside a `debug_assert_eq!`
+/// — under `--release` the call compiled out, the forest stayed empty,
+/// and the first `find` panicked (`union_find.rs` index OOB). Run this
+/// under `cargo test --release` to cover the bug's profile.
+#[test]
+fn interned_ids_resolve_in_union_find() {
+    let mut g = EGraph::new();
+    let e = g.add_term(&leaf("x"), "input").unwrap();
+    assert_eq!(g.find(e), e);
+    let f = g
+        .add_term(&op("f", vec![leaf("x"), leaf("y")]), "input")
+        .unwrap();
+    // The op's children were interned first; canonical lookup must
+    // resolve every id the run minted.
+    assert_eq!(g.find(e), e);
+    assert_eq!(g.n_classes(), 3);
+    assert!(g.union(e, f));
+    assert_eq!(g.find(f), g.find(e));
+}
+
 #[test]
 fn hash_consing_shares_classes() {
     let mut g = EGraph::new();

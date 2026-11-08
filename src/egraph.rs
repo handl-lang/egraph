@@ -401,7 +401,12 @@ impl EGraph {
     fn insert_enode(&mut self, enode: ENode, provenance: Option<Rc<str>>) -> ClassId {
         let eid = self.next_id;
         self.next_id += 1;
-        debug_assert_eq!(self.uf.make(), eid);
+        // NOT a `debug_assert`: `uf.make()` mutates — wrapping it in a
+        // debug assertion would compile the allocation out under
+        // `--release` and every later `find` would index an empty
+        // forest. The equality check stays as the invariant.
+        let uf_id = self.uf.make();
+        debug_assert_eq!(uf_id, eid);
         let mut ec = EClass::new(eid);
         ec.nodes.insert(enode.clone());
         self.classes.insert(eid, ec);
