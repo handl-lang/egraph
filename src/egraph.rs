@@ -1408,10 +1408,18 @@ impl EGraph {
         } else {
             None
         };
-        let ids: Vec<ClassId> = match search {
+        // The spec scans candidates in ascending class-id order: its
+        // `_classes` dict iterates in insertion (= id) order and the
+        // dirty-frontier `search` set is `sorted(...)`.  `classes` is
+        // an FxHashMap — its key order is hash order, NOT id order —
+        // so both branches must sort explicitly or the first-pass
+        // scan order (and every budgeted rule's admission order)
+        // diverges from the spec's.
+        let mut ids: Vec<ClassId> = match search {
             None => self.classes.keys().copied().collect(),
             Some(s) => s.iter().copied().collect(),
         };
+        ids.sort_unstable();
         let mut out = Vec::new();
         for eid0 in ids {
             let eid = self.find(eid0);
