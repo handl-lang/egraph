@@ -11,9 +11,17 @@ applications/provenance machinery. It is a **by-contract** port of the proven
 is the composable Rust substrate.
 
 ## Modules
-- `egraph` — `EGraph`, `Rewrite`, saturation loop, extraction
-- `matcher` — the compiled pattern matcher
-- `term` — `Term`, `TermAttr` and `from_kernel`/`to_kernel` bridges to the kernel
+- `egraph` — `EGraph`, `Rewrite`, the saturation loop (the compiled
+  matcher lives here — there is no separate `matcher` module), extraction
+- `extract` — deterministic extraction (`dag_cost`)
+- `node` — `EClass`/`ENode`/`ClassId` and the `op -> members` index
+- `pattern` — pattern compilation for the matcher
+- `rewrite` — `Rewrite`, `Application`/`Derived` provenance, checks/derivations
+- `subst` — `Subst`, the match substitution
+- `term` — `Term`, `Op`, `TermAttr` and attribute plumbing
+- `term_bridge` — `from_kernel`/`to_kernel` bridges to the kernel `Term`/`Value`
+- `union_find` — the e-class union-find
+- `value` — `AttrValue`
 
 
 ## Start here
