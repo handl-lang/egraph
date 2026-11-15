@@ -6,13 +6,16 @@
 //! domain operator `name`), with `Term`-typed fields as child positions
 //! in declaration order and scalar/`Value` fields as literal attrs.
 //! `Term::Op` additionally encodes `dim` as **child position 0** so
-//! rewrites can reach it; `source`/`lit` ride attrs:
+//! rewrites can reach it; `source`/`lit`/`attrs` ride attrs. The
+//! kernel's untyped `attrs: Option<Value>` payload (ADR-0173) is
+//! carried whole under the reserved `"__attrs__"` key — any `Value`
+//! round-trips and the key cannot collide with `source`/`foreign`/`lit`:
 //!
 //! | `Term` variant | enode `op` | children | attrs |
 //! |---|---|---|---|
 //! | `Arr{dim, value}` | `arr` | `[dim]` | `value` |
 //! | `Const{value}` | — *leaf* | `[]` | self-describing key |
-//! | `Op{dim,name,args,source,lit}` | `name` | `[dim, ..args]` | `source`, `foreign`?, `lit`? |
+//! | `Op{dim,name,args,source,lit,attrs}` | `name` | `[dim, ..args]` | `source`, `foreign`?, `lit`?, `__attrs__`? |
 //! | `Seq{axis,fst,snd}` | `seq` | `[axis,fst,snd]` | |
 //! | `First{inner}` | `first` | `[inner]` | |
 //! | `Choice{l,r}` | `choice` | `[l,r]` | |
@@ -60,6 +63,7 @@ pub fn from_kernel(t: &KTerm) -> Term {
             args,
             source,
             lit,
+            attrs: kattrs,
         } => {
             let mut children = Vec::with_capacity(args.len() + 1);
             children.push(from_kernel(dim));
@@ -71,6 +75,9 @@ pub fn from_kernel(t: &KTerm) -> Term {
             }
             if let Some(l) = lit {
                 attrs.push((Rc::from("lit"), alit(json(l))));
+            }
+            if let Some(a) = kattrs {
+                attrs.push((Rc::from("__attrs__"), alit(json(a))));
             }
             Term::op(name.as_str(), Rc::from(children), attrs)
         }
@@ -270,6 +277,7 @@ pub fn to_kernel(t: &Term) -> KTerm {
                         args: rest.iter().map(to_kernel).collect(),
                         source: decode_source(get("source"), get("foreign")),
                         lit: get("lit").map(AttrValue::to_json),
+                        attrs: get("__attrs__").map(AttrValue::to_json),
                     }
                 }
             }

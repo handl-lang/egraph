@@ -324,3 +324,29 @@ fn kernel_term_round_trip() {
     let k2 = to_kernel(&back);
     assert_eq!(k2, kadd);
 }
+
+#[test]
+fn kernel_term_attrs_round_trip() {
+    // ADR-0173: `Term::Op.attrs` is node identity — it must survive the
+    // bridge in both directions, including through e-graph interning.
+    let attrs = serde_json::json!({"layout": "nhwc", "rank": 4});
+    let k = KernelTerm::op_native_attrs(
+        "tensor.conv",
+        vec![KernelTerm::constant(serde_json::json!(1))],
+        attrs.clone(),
+    );
+    // Direct bridge round-trip.
+    assert_eq!(to_kernel(&from_kernel(&k)), k);
+    // Through the graph: attrs are part of the enode key.
+    let mut g = EGraph::new();
+    let e = g.add_term(&from_kernel(&k), "input").unwrap();
+    assert_eq!(to_kernel(&g.any_term(e).unwrap()), k);
+    // A term differing only in attrs is a *different* enode.
+    let k2 = KernelTerm::op_native_attrs(
+        "tensor.conv",
+        vec![KernelTerm::constant(serde_json::json!(1))],
+        serde_json::json!({"layout": "nchw"}),
+    );
+    let e2 = g.add_term(&from_kernel(&k2), "input").unwrap();
+    assert_ne!(e, e2);
+}
