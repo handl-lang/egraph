@@ -29,6 +29,42 @@ use crate::node::{ClassId, ENode};
 use crate::term::{Term, TermAttr};
 use crate::value::AttrValue;
 
+/// Identity key for memoising walks over **shared** terms.
+///
+/// `Term`'s derived `Hash`/`Eq` is *structural*: on a DAG (extracted
+/// terms share subtrees through `Rc`) a single hash or compare walks
+/// the whole tree expansion — exponential, the same blow-up the
+/// `dag.program` wire envelope exists to prevent. Two occurrences of
+/// one shared node are `Rc`-clones: their `op`/`args`/`attrs`
+/// allocations are pointer-identical, so `(data ptr, len)` pairs
+/// identify the node in O(1). Pointer-equal ⇒ structurally identical
+/// ⇒ same price; pointer-distinct terms merely miss the memo and are
+/// priced again — the memo never changes a *value*, only dedup work.
+/// The memo stores the `Term` alongside the price so the `Rc`s it keys
+/// on cannot be freed and their addresses reused while it lives.
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) struct TermKey(u8, usize, usize, usize);
+
+/// `(tag, ptr, len-or-ptr2, ptr3)` identity of a term node.
+pub(crate) fn term_key(t: &Term) -> TermKey {
+    match t {
+        // `Rc<str>`'s own `as_ptr` is the *fat* `*const str` — go
+        // through `str::as_bytes` for the thin data pointer.
+        Term::Var(n) => TermKey(0, n.as_bytes().as_ptr() as usize, n.len(), 0),
+        Term::Leaf(k) => TermKey(1, k.as_bytes().as_ptr() as usize, k.len(), 0),
+        Term::Op(o) => TermKey(
+            2,
+            o.op.as_bytes().as_ptr() as usize,
+            o.args.as_ptr() as usize,
+            o.attrs.as_ptr() as usize,
+        ),
+    }
+}
+
+/// The cost memo `extract_best` shares across calls: identity-keyed,
+/// value-keeping (see [`TermKey`]).
+pub(crate) type CostMemo = FxHashMap<TermKey, (f64, Term)>;
+
 /// Per-class extraction cache entry — the spec's
 /// `(total, term, used, nops, cfn(term), local)` tuple, typed.
 #[derive(Clone)]
@@ -60,15 +96,16 @@ struct ExtractCtx<'a> {
     in_progress: BTreeSet<ClassId>,
     overrides: Option<&'a FxHashMap<ClassId, ENode>>,
     bans: Option<&'a FxHashMap<ClassId, BTreeSet<ENode>>>,
-    memo: FxHashMap<Term, f64>,
+    memo: CostMemo,
 }
 
-fn priced(memo: &mut FxHashMap<Term, f64>, f: &mut dyn FnMut(&Term) -> f64, t: &Term) -> f64 {
-    if let Some(&c) = memo.get(t) {
+fn priced(memo: &mut CostMemo, f: &mut dyn FnMut(&Term) -> f64, t: &Term) -> f64 {
+    let key = term_key(t);
+    if let Some(&(c, _)) = memo.get(&key) {
         c
     } else {
         let c = f(t);
-        memo.insert(t.clone(), c);
+        memo.insert(key, (c, t.clone()));
         c
     }
 }

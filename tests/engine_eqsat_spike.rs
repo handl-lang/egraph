@@ -39,11 +39,7 @@ fn add_zero() -> Rewrite {
         "add_zero",
         Term::op(
             "add",
-            vec![
-                Term::var("d"),
-                Term::var("x"),
-                const_leaf(json!(0)),
-            ],
+            vec![Term::var("d"), Term::var("x"), const_leaf(json!(0))],
             native_attrs(),
         ),
         Term::var("x"),
@@ -57,11 +53,7 @@ fn mul_one() -> Rewrite {
         "mul_one",
         Term::op(
             "mul",
-            vec![
-                Term::var("d"),
-                Term::var("x"),
-                const_leaf(json!(1)),
-            ],
+            vec![Term::var("d"), Term::var("x"), const_leaf(json!(1))],
             native_attrs(),
         ),
         Term::var("x"),
@@ -105,11 +97,7 @@ fn saturation_loop_closes_over_kernel_terms() {
     let mut g = EGraph::new();
     let root = g.add_term(&from_kernel(&input), "input").unwrap();
     let stats = g
-        .run(
-            &[add_zero(), mul_one()],
-            root,
-            &mut RunOptions::default(),
-        )
+        .run(&[add_zero(), mul_one()], root, &mut RunOptions::default())
         .unwrap();
     assert_eq!(stats.stop, StopReason::FixedPoint);
 

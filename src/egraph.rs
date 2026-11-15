@@ -276,7 +276,7 @@ pub struct EGraph {
     budget_spent: FxHashMap<Rc<str>, usize>,
     /// Per-`cost_fn` shared cost memos (`(TypeId, addr) -> memo`) —
     /// each extraction pass prices each distinct term once, total.
-    cost_memos: FxHashMap<(std::any::TypeId, usize), FxHashMap<Term, f64>>,
+    cost_memos: FxHashMap<(std::any::TypeId, usize), crate::extract::CostMemo>,
 }
 
 impl EGraph {
@@ -1919,7 +1919,7 @@ impl EGraph {
     pub(crate) fn take_cost_memo(
         &mut self,
         key: (std::any::TypeId, usize),
-    ) -> FxHashMap<Term, f64> {
+    ) -> crate::extract::CostMemo {
         self.cost_memos.remove(&key).unwrap_or_default()
     }
 
@@ -1927,7 +1927,7 @@ impl EGraph {
     pub(crate) fn put_cost_memo(
         &mut self,
         key: (std::any::TypeId, usize),
-        memo: FxHashMap<Term, f64>,
+        memo: crate::extract::CostMemo,
     ) {
         self.cost_memos.insert(key, memo);
     }
