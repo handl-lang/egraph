@@ -21,6 +21,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::rc::Rc;
+use std::time::Instant;
 
 use rustc_hash::FxHashMap;
 
@@ -277,6 +278,40 @@ pub struct EGraph {
     /// Per-`cost_fn` shared cost memos (`(TypeId, addr) -> memo`) —
     /// each extraction pass prices each distinct term once, total.
     cost_memos: FxHashMap<(std::any::TypeId, usize), crate::extract::CostMemo>,
+    /// Cheap instrumentation counters — incremented unconditionally,
+    /// diffed per rule by `run`'s `EQSAT_TIMING` diagnostics.
+    #[doc(hidden)]
+    pub prof: Prof,
+}
+
+/// Saturation instrumentation counters (see [`EGraph::prof`]).
+#[derive(Debug, Default, Clone, Copy)]
+pub struct Prof {
+    /// Substitutions yielded by LHS enumeration into `apply_rule`.
+    pub substs: u64,
+    /// `union_with` calls issued by `apply_rule`.
+    pub unions: u64,
+    /// Candidate classes scanned by `apply_rule`.
+    pub candidates: u64,
+    /// Nanoseconds inside `enumerate` (LHS matching).
+    pub enum_ns: u64,
+    /// Nanoseconds resolving term metavars (`min_term_cached`) for hooks.
+    pub resolve_ns: u64,
+    /// Nanoseconds inside `check` hooks.
+    pub check_ns: u64,
+    /// Nanoseconds inside `derive` hooks.
+    pub derive_ns: u64,
+    /// Nanoseconds inside RHS `instantiate`.
+    pub inst_ns: u64,
+    /// Nanoseconds inside `union_with`.
+    pub union_ns: u64,
+}
+
+impl Prof {
+    /// Sum of the per-phase timers (ns).
+    pub fn phase_ns(&self) -> u64 {
+        self.enum_ns + self.resolve_ns + self.check_ns + self.derive_ns + self.inst_ns + self.union_ns
+    }
 }
 
 impl EGraph {
@@ -333,6 +368,7 @@ impl EGraph {
             applied_rules: BTreeSet::new(),
             budget_spent: FxHashMap::default(),
             cost_memos: FxHashMap::default(),
+            prof: Prof::default(),
         }
     }
 
@@ -1464,6 +1500,7 @@ impl EGraph {
         let lhs_prog = self.prog_for(&rule.lhs);
         let rhs_prog = self.prog_for(&rule.rhs);
         let candidates = self.candidate_classes(&lhs_prog, search);
+        self.prof.candidates += candidates.len() as u64;
         for eid in candidates {
             let match_cap = match enode_budget {
                 Some(budget) => {
@@ -1479,12 +1516,17 @@ impl EGraph {
             // in canonical enumeration order, and the enumeration is a
             // call-time snapshot — matching the spec's frozen-epoch
             // stream exactly (see the module docs).
-            for mut subst in self.enumerate(&lhs_prog, eid, match_cap) {
+            let et = Instant::now();
+            let substs = self.enumerate(&lhs_prog, eid, match_cap);
+            self.prof.enum_ns += et.elapsed().as_nanos() as u64;
+            self.prof.substs += substs.len() as u64;
+            for mut subst in substs {
                 if rule.check.is_some() || rule.derive.is_some() {
                     // Resolve every term metavar to its minimum-size
                     // member before the hooks see the binding — a class
                     // that resolves to `None` (fully cyclic) skips the
                     // substitution, conservative never-wrong.
+                    let rt = Instant::now();
                     let mut terms: BTreeMap<Rc<str>, Term> = BTreeMap::new();
                     let mut resolved = true;
                     for (k, &v) in subst.terms.iter() {
@@ -1498,6 +1540,7 @@ impl EGraph {
                             }
                         }
                     }
+                    self.prof.resolve_ns += rt.elapsed().as_nanos() as u64;
                     if !resolved {
                         continue;
                     }
@@ -1505,13 +1548,19 @@ impl EGraph {
                         terms,
                         attrs: subst.attrs.clone(),
                     };
-                    if let Some(check) = &rule.check
-                        && !check(&env)
-                    {
-                        continue;
+                    if let Some(check) = &rule.check {
+                        let ct = Instant::now();
+                        let ok = check(&env);
+                        self.prof.check_ns += ct.elapsed().as_nanos() as u64;
+                        if !ok {
+                            continue;
+                        }
                     }
                     if let Some(derive) = &rule.derive {
-                        let Some(extra) = derive(&env) else {
+                        let dt = Instant::now();
+                        let extra = derive(&env);
+                        self.prof.derive_ns += dt.elapsed().as_nanos() as u64;
+                        let Some(extra) = extra else {
                             continue;
                         };
                         for d in extra {
@@ -1545,6 +1594,7 @@ impl EGraph {
                         }
                     }
                 }
+                let it_t = Instant::now();
                 let (result, created) = if self.track {
                     self.tag_rule = Some(rule.name.clone());
                     self.collect = Some(Vec::new());
@@ -1556,11 +1606,14 @@ impl EGraph {
                     self.inst_last_enode = None;
                     (self.instantiate(&rhs_prog.root, &subst), Vec::new())
                 };
+                self.prof.inst_ns += it_t.elapsed().as_nanos() as u64;
                 // A binding that cannot realise the RHS — skip like a
                 // check veto (the spec's KeyError arm).
                 let Some(rhs_eid) = result else {
                     continue;
                 };
+                self.prof.unions += 1;
+                let ut = Instant::now();
                 let merged = self.union_with(
                     eid,
                     rhs_eid,
@@ -1570,6 +1623,7 @@ impl EGraph {
                         ..MergeInfo::default()
                     },
                 );
+                self.prof.union_ns += ut.elapsed().as_nanos() as u64;
                 if self.track && (merged || !created.is_empty()) {
                     // A real merge or freshly-instantiated enodes — the
                     // application is a witness worth keeping. A no-op
@@ -1640,14 +1694,26 @@ impl EGraph {
         let mut stall = 0usize;
         let mut improved = 0usize;
         let mut iteration = 0usize;
+        let timing = std::env::var_os("EQSAT_TIMING").is_some();
         for it in 0..opts.max_iterations {
             iteration = it;
+            let it_t = Instant::now();
             let n_before = self.n_enodes();
             // Snapshot the frontier ONCE per iteration: classes changed
             // while rules fire are re-searched next iteration.
             let dirty_ids: Vec<ClassId> = self.dirty.iter().copied().collect();
+            let n_dirty = dirty_ids.len();
             let search: BTreeSet<ClassId> = dirty_ids.into_iter().map(|e| self.find(e)).collect();
             self.dirty.clear();
+            if timing {
+                eprintln!(
+                    "[eqsat] iter {it}: start enodes={} classes={} dirty={} search={}",
+                    n_before,
+                    self.n_classes(),
+                    n_dirty,
+                    search.len(),
+                );
+            }
             for rule in rules {
                 let budget = opts.rule_budgets.get(rule.name.as_ref()).copied();
                 let remaining = match budget {
@@ -1661,12 +1727,32 @@ impl EGraph {
                     None => None,
                 };
                 let n0 = self.n_enodes();
+                let rt = Instant::now();
+                let (s0, u0, c0, p0) = (
+                    self.prof.substs,
+                    self.prof.unions,
+                    self.prof.candidates,
+                    self.prof.phase_ns(),
+                );
                 if self.applied_rules.contains(&rule.name) {
                     self.apply_rule(rule, root_eid, Some(&search), remaining);
                 } else {
                     // Never scanned this graph: full scan once —
                     // afterwards the dirty frontier suffices.
                     self.apply_rule(rule, root_eid, None, remaining);
+                }
+                if timing {
+                    eprintln!(
+                        "[eqsat]   rule {:<44} {:>9.1}ms (ph {:>8.1}ms) enodes {}->{} substs+{} unions+{} cand+{}",
+                        rule.name,
+                        rt.elapsed().as_secs_f64() * 1e3,
+                        (self.prof.phase_ns() - p0) as f64 / 1e6,
+                        n0,
+                        self.n_enodes(),
+                        self.prof.substs - s0,
+                        self.prof.unions - u0,
+                        self.prof.candidates - c0,
+                    );
                 }
                 if budget.is_some() {
                     *self
@@ -1677,7 +1763,16 @@ impl EGraph {
             }
             let mut rebuild_set: BTreeSet<ClassId> = search;
             rebuild_set.extend(self.dirty.iter().copied());
+            let bt = Instant::now();
             self.rebuild(Some(rebuild_set));
+            if timing {
+                eprintln!(
+                    "[eqsat] iter {it}: rule pass {:.1}ms, rebuild(restricted) {:.1}ms, enodes {}",
+                    it_t.elapsed().as_secs_f64() * 1e3,
+                    bt.elapsed().as_secs_f64() * 1e3,
+                    self.n_enodes(),
+                );
+            }
             let n_after = self.n_enodes();
             if n_after >= opts.max_nodes {
                 stop_reason = StopReason::MaxNodes;
@@ -1713,7 +1808,26 @@ impl EGraph {
         // Leave the graph in the same canonicalised postcondition the
         // unrestricted loop guaranteed (downstream passes and
         // extraction traverse it directly).
+        let ft = Instant::now();
         self.rebuild(None);
+        if timing {
+            let p = &self.prof;
+            eprintln!(
+                "[eqsat] final rebuild(None) {:.1}ms, enodes {} classes {} | prof: substs={} unions={} cand={} enum={:.0}ms resolve={:.0}ms check={:.0}ms derive={:.0}ms inst={:.0}ms union={:.0}ms",
+                ft.elapsed().as_secs_f64() * 1e3,
+                self.n_enodes(),
+                self.n_classes(),
+                p.substs,
+                p.unions,
+                p.candidates,
+                p.enum_ns as f64 / 1e6,
+                p.resolve_ns as f64 / 1e6,
+                p.check_ns as f64 / 1e6,
+                p.derive_ns as f64 / 1e6,
+                p.inst_ns as f64 / 1e6,
+                p.union_ns as f64 / 1e6,
+            );
+        }
         Ok(SaturationStats {
             iterations: iteration + 1,
             n_enodes: self.n_enodes(),
