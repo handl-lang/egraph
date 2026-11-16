@@ -1520,7 +1520,25 @@ impl EGraph {
             let substs = self.enumerate(&lhs_prog, eid, match_cap);
             self.prof.enum_ns += et.elapsed().as_nanos() as u64;
             self.prof.substs += substs.len() as u64;
-            for mut subst in substs {
+            if std::env::var_os("EQSAT_DEBUG").is_some() {
+                eprintln!(
+                    "[eqsat-dbg] rule={} eid={} enumerate -> {} substs in {:.1}ms",
+                    rule.name,
+                    eid,
+                    substs.len(),
+                    et.elapsed().as_secs_f64() * 1e3
+                );
+            }
+            let dbg_timing = std::env::var_os("EQSAT_DEBUG").is_some();
+            for (subst_i, mut subst) in substs.into_iter().enumerate() {
+                if dbg_timing {
+                    eprintln!(
+                        "[eqsat-dbg] rule={} eid={} subst#{subst_i} terms={}",
+                        rule.name,
+                        eid,
+                        subst.terms.len()
+                    );
+                }
                 if rule.check.is_some() || rule.derive.is_some() {
                     // Resolve every term metavar to its minimum-size
                     // member before the hooks see the binding — a class
@@ -1541,6 +1559,13 @@ impl EGraph {
                         }
                     }
                     self.prof.resolve_ns += rt.elapsed().as_nanos() as u64;
+                    if dbg_timing {
+                        eprintln!(
+                            "[eqsat-dbg]   resolved in {:.1}ms ok={}",
+                            rt.elapsed().as_secs_f64() * 1e3,
+                            resolved
+                        );
+                    }
                     if !resolved {
                         continue;
                     }
@@ -1552,6 +1577,13 @@ impl EGraph {
                         let ct = Instant::now();
                         let ok = check(&env);
                         self.prof.check_ns += ct.elapsed().as_nanos() as u64;
+                        if dbg_timing {
+                            eprintln!(
+                                "[eqsat-dbg]   check in {:.1}ms ok={}",
+                                ct.elapsed().as_secs_f64() * 1e3,
+                                ok
+                            );
+                        }
                         if !ok {
                             continue;
                         }
