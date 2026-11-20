@@ -5,6 +5,11 @@ edition = "2024"
 description = "Generic e-graph / equality-saturation substrate over the kernel's `Term`/`Value` — the named Rust port of catopt-core's proven e-graph spec."
 license = "MIT"
 repository = "https://github.com/handl-lang/egraph"
+homepage = "https://handl-lang.github.io/docs/egraph/"
+documentation = "https://handl-lang.github.io/docs/egraph/"
+readme = "README.md"
+keywords = ["e-graph", "equality-saturation", "term-rewriting"]
+categories = ["science", "compilers"]
 
 # handl deps float on `main` (git). Local development resolves them to
 # sibling checkouts via `source ~/.cache/devin/handl_deps.env` (git
