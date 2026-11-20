@@ -27,6 +27,7 @@ serde_json = "1"
 [patch."https://github.com/handl-lang/engine"]
 hnl-engine = { path = "../engine" }
 [patch."https://github.com/handl-lang/kernel"]
+handl-calculus = { path = "../kernel/crates/handl-calculus" }
 handl-language = { path = "../kernel/crates/handl-language" }
 handl-value = { path = "../kernel/crates/handl-value" }
 # dev-link: end
