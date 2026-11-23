@@ -10,9 +10,8 @@ checkable against the Python reference.
 
 ## Where it sits
 
-This crate belongs to the `engine-*` family. Plugins, kits and hosts reach it
-through the kit's operation slot, so the engine can be swapped without touching a
-language definition.
+This crate belongs to the research layer of the org — it is not one of the
+`engine`/`engine-eqsat`, `tool-*` or `exec-*` repos.
 
 See the [reference](/egraph/reference/) for the API and the
 [how-to guides](/egraph/how-to/) for tasks.
