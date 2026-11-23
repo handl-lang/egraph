@@ -23,7 +23,7 @@
 //! | `App{callee,args}` | `app` | `[callee, ..args]` | |
 //! | `Iter{fuel,predicate,step,initial}` | `iter` | 4 children | |
 //! | `Child{role}` | `child` | `[]` | `role` |
-//! | `Handle{body,target,impl_}` | `handle` | `[body,impl_]` | `target` |
+//! | `Handle{body,target,impl_,acc?}` | `handle` | `[body,impl_,acc?]` | `target` |
 //! | `Rewrite{source,target,witness}` | `rewrite` | `[source,target]` | `witness`, `witness_name`? |
 //! | `Src{cell}` / `Tgt{cell}` | `src`/`tgt` | `[cell]` | |
 //! | `RecordProj{record,field}` | `record_proj` | `[record]` | `field` |
@@ -117,11 +117,18 @@ pub fn from_kernel(t: &KTerm) -> Term {
             body,
             target,
             impl_,
-        } => Term::op(
-            "handle",
-            Rc::from(vec![from_kernel(body), from_kernel(impl_)]),
-            [(Rc::from("target"), alit(target.as_str().into()))],
-        ),
+            acc,
+        } => {
+            let mut children = vec![from_kernel(body), from_kernel(impl_)];
+            if let Some(acc) = acc {
+                children.push(from_kernel(acc));
+            }
+            Term::op(
+                "handle",
+                Rc::from(children),
+                [(Rc::from("target"), alit(target.as_str().into()))],
+            )
+        }
         Rewrite {
             source,
             target,
@@ -222,10 +229,13 @@ pub fn to_kernel(t: &Term) -> KTerm {
                 "child" if args.is_empty() => KTerm::Child {
                     role: str_attr(get("role")),
                 },
-                "handle" if args.len() == 2 => KTerm::Handle {
+                // 2 children = accumulator-free form; a 3rd child is
+                // the optional handler accumulator (`acc` role).
+                "handle" if args.len() == 2 || args.len() == 3 => KTerm::Handle {
                     body: boxed(&args[0]),
                     target: str_attr(get("target")),
                     impl_: boxed(&args[1]),
+                    acc: args.get(2).map(boxed),
                 },
                 "rewrite" if args.len() == 2 => KTerm::Rewrite {
                     source: boxed(&args[0]),
