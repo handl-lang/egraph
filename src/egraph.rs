@@ -310,7 +310,12 @@ pub struct Prof {
 impl Prof {
     /// Sum of the per-phase timers (ns).
     pub fn phase_ns(&self) -> u64 {
-        self.enum_ns + self.resolve_ns + self.check_ns + self.derive_ns + self.inst_ns + self.union_ns
+        self.enum_ns
+            + self.resolve_ns
+            + self.check_ns
+            + self.derive_ns
+            + self.inst_ns
+            + self.union_ns
     }
 }
 
