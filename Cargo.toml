@@ -2,6 +2,7 @@
 name = "handl-egraph"
 version = "0.1.0"
 edition = "2024"
+rust-version = "1.85"
 description = "Generic e-graph / equality-saturation substrate over the kernel's `Term`/`Value` — the named Rust port of catopt-core's proven e-graph spec."
 license = "MIT"
 repository = "https://github.com/handl-lang/egraph"
